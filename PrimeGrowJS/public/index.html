@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Control</title>
+  <style>
+    .on {
+      background-color: green;
+    }
+    .off {
+      background-color: red;
+    }
+  </style>
+</head>
+<body>
+  <h1>ESP32 Control</h1>
+
+  <button type="button" id="BTN_ToggleMotorDown" class="off" onclick="togglePin('E_motor_Down')">Toggle Motor Down: <span id="motorDownState">Off</span></button>
+  <button type="button" id="BTN_ToggleMotorUp" class="off" onclick="togglePin('E_motor_Up')">Toggle Motor Up: <span id="motorUpState">Off</span></button>
+  <button type="button" id="BTN_ToggleFan" class="off" onclick="togglePin('E_Fan')">Toggle Fan: <span id="fanState">Off</span></button>
+  <button type="button" id="BTN_TogglePump" class="off" onclick="togglePin('E_Pump')">Toggle Pump: <span id="pumpState">Off</span></button>
+  <button type="button" id="BTN_TogglePest" class="off" onclick="togglePin('E_pest')">Toggle Pest Control: <span id="pestState">Off</span></button>
+  <button type="button" id="BTN_ToggleLight" class="off" onclick="togglePin('E_Light')">Toggle Light: <span id="lightState">Off</span></button>
+  <button type="button" id="BTN_ToggleWindow" class="off" onclick="togglePin('E_Window')">Toggle Window: <span id="windowState">Closed</span></button>
+
+  <h2>Sensor Data</h2>
+  <p id="temperature">Temperature: N/A °C</p>
+  <p id="humidity">Humidity: N/A %</p>
+  <p id="moisture">Moisture: N/A %</p>
+  <p id="sunlight">Sunlight: N/A Lux</p>
+  <p id="rainfall">Rainfall: N/A mm</p>
+
+  <script>
+    //const socket = new WebSocket('ws://192.168.0.198:81');
+    const socket = new WebSocket('ws://localhost:3001');
+
+    socket.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+
+    socket.onmessage = (event) => {
+      console.log('Message from server:', event.data);
+      const [pinName, state] = event.data.split(':');
+      const stateElement = document.getElementById(`${pinName.toLowerCase()}State`);
+      if (stateElement) {
+        stateElement.textContent = state === 'on' ? 'On' : 'Off';
+        const buttonElement = document.getElementById(`BTN_Toggle${pinName}`);
+        if (buttonElement) {
+          buttonElement.textContent = `Toggle ${pinName}: ${state === 'on' ? 'Off' : 'On'}`;
+          buttonElement.className = state === 'on' ? 'on' : 'off';
+        }
+      }
+      try {
+        const sensorData = JSON.parse(event.data);
+        updateSensorData(sensorData);
+      } catch (error) {
+        console.error('Error parsing sensor data:', error);
+      }
+    };
+
+    socket.onclose = (event) => {
+      if (event.wasClean) {
+        console.log(`Closed cleanly, code=${event.code}, reason=${event.reason}`);
+      } else {
+        console.error('Connection died');
+      }
+    };
+
+    function togglePin(pinName) {
+      socket.send(`toggle:${pinName}`);
+      console.log(`toggle:${pinName}`);
+    }
+
+    
+    function updateSensorData(sensorData) {
+      document.getElementById('temperature').textContent = `Temperature: ${sensorData.temperature} °C`;
+      document.getElementById('humidity').textContent = `Humidity: ${sensorData.humidity} %`;
+      document.getElementById('moisture').textContent = `Moisture: ${sensorData.moisture} %`;
+      document.getElementById('sunlight').textContent = `Sunlight: ${sensorData.sunlight} Lux`;
+      document.getElementById('rainfall').textContent = `Rainfall: ${sensorData.rainfall} mm`;
+    }
+  </script>
+</body>
+</html>
