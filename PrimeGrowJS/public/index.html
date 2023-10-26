@@ -1,35 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Control</title>
-  <style>
-    .on {
-      background-color: green;
-    }
-    .off {
-      background-color: red;
-    }
-  </style>
+  <title>Prime Grow</title>
+  <link rel="stylesheet" href="style.css">
+
 </head>
+
 <body>
-  <h1>ESP32 Control</h1>
+  <h1 class="Title">ESP32 Control</h1>
+  <div class="sensor-container">
+    <div class="toggle-switch">
+      <label class="switch-label">
+        <input type="checkbox" onclick="togglePin('E_motor_Down')">
+        <span class="toggle-slider"></span>
+        Window Down <!-- <span id="motorUpState">Off</span> -->
+      </label>
+    </div>
 
-  <button type="button" id="BTN_ToggleMotorDown" class="off" onclick="togglePin('E_motor_Down')">Toggle Motor Down: <span id="motorDownState">Off</span></button>
-  <button type="button" id="BTN_ToggleMotorUp" class="off" onclick="togglePin('E_motor_Up')">Toggle Motor Up: <span id="motorUpState">Off</span></button>
-  <button type="button" id="BTN_ToggleFan" class="off" onclick="togglePin('E_Fan')">Toggle Fan: <span id="fanState">Off</span></button>
-  <button type="button" id="BTN_TogglePump" class="off" onclick="togglePin('E_Pump')">Toggle Pump: <span id="pumpState">Off</span></button>
-  <button type="button" id="BTN_TogglePest" class="off" onclick="togglePin('E_pest')">Toggle Pest Control: <span id="pestState">Off</span></button>
-  <button type="button" id="BTN_ToggleLight" class="off" onclick="togglePin('E_Light')">Toggle Light: <span id="lightState">Off</span></button>
-  <button type="button" id="BTN_ToggleWindow" class="off" onclick="togglePin('E_Window')">Toggle Window: <span id="windowState">Closed</span></button>
+    <div class="toggle-switch">
+      <label class="switch-label">
+        <input type="checkbox" onclick="togglePin('E_motor_Up')">
+        <span class="toggle-slider"></span>
+        Window Up <!-- <span id="motorUpState">Off</span> -->
+      </label>
+    </div>
 
-  <h2>Sensor Data</h2>
-  <p id="temperature">Temperature: N/A °C</p>
-  <p id="humidity">Humidity: N/A %</p>
-  <p id="moisture">Moisture: N/A %</p>
-  <p id="sunlight">Sunlight: N/A Lux</p>
-  <p id="rainfall">Rainfall: N/A mm</p>
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_Fan')">
+      <span class="toggle-slider"></span>
+      Fan <!-- <span id="fanState">Off</span> -->
+    </label>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_Pump')">
+      <span class="toggle-slider"></span>
+      Pump <!-- <span id="pumpState">Off</span> -->
+    </label>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_pest')">
+      <span class="toggle-slider"></span>
+      pest <!-- <span id="pestState">Off</span> -->
+    </label>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_Light')">
+      <span class="toggle-slider"></span>
+      Light <!-- <span id="motorUpState">Off</span> -->
+    </label>
+  </div>
+  
+
+  <h2 class="Title">Sensor Data</h2>
+  <div class="sensor-container">
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="temperature-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A °C</text>
+      </svg>
+      <div id="temperature" class="sensor-value">Temperature: N/A °C</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="humidity-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A %</text>
+      </svg>
+      <div id="humidity" class="sensor-value">Humidity: N/A %</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="moisture-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A %</text>
+      </svg>
+      <div id="moisture" class="sensor-value">Moisture: N/A %</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="sunlight-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A %</text>
+      </svg>
+      <div id="sunlight" class="sensor-value">Sunlight: N/A Lux</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="rainfall-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A mm</text>
+      </svg>
+      <div id="rainfall" class="sensor-value">Rainfall: N/A mm</div>
+    </div>
+  </div>
+
 
   <script>
     //const socket = new WebSocket('ws://192.168.0.198:81');
@@ -54,6 +126,12 @@
       try {
         const sensorData = JSON.parse(event.data);
         updateSensorData(sensorData);
+        updateProgressBar('temperature-progress', sensorData.temperature, 100, '°C');
+        updateProgressBar('humidity-progress', sensorData.humidity, 100, '%');
+        updateProgressBar('moisture-progress', sensorData.moisture, 100, '%');
+        updateProgressBar('sunlight-progress', sensorData.sunlight, 100, 'Lux');
+        updateProgressBar('rainfall-progress', sensorData.rainfall, 100, 'mm');
+
       } catch (error) {
         console.error('Error parsing sensor data:', error);
       }
@@ -72,14 +150,52 @@
       console.log(`toggle:${pinName}`);
     }
 
-    
+
+
+
     function updateSensorData(sensorData) {
+
       document.getElementById('temperature').textContent = `Temperature: ${sensorData.temperature} °C`;
       document.getElementById('humidity').textContent = `Humidity: ${sensorData.humidity} %`;
       document.getElementById('moisture').textContent = `Moisture: ${sensorData.moisture} %`;
       document.getElementById('sunlight').textContent = `Sunlight: ${sensorData.sunlight} Lux`;
       document.getElementById('rainfall').textContent = `Rainfall: ${sensorData.rainfall} mm`;
+
+      // Update progress text for each sensor
+      document.querySelector('#temperature-progress + .progress-text').textContent = `${sensorData.temperature} °C`;
+      document.querySelector('#humidity-progress + .progress-text').textContent = `${sensorData.humidity} %`;
+      document.querySelector('#moisture-progress + .progress-text').textContent = `${sensorData.moisture} %`;
+      document.querySelector('#sunlight-progress + .progress-text').textContent = `${sensorData.sunlight} Lux`;
+      document.querySelector('#rainfall-progress + .progress-text').textContent = `${sensorData.rainfall} mm`;
     }
+
+    function updateProgressBar(id, value, maxValue, unit) {
+  const progress = (value / maxValue) * 100;
+  const circle = document.getElementById(id);
+  const circumference = 2 * Math.PI * circle.getAttribute('r');
+  const dashoffset = circumference - (circumference * progress) / 100;
+
+  circle.style.strokeDasharray = `${circumference} ${circumference}`;
+  circle.style.strokeDashoffset = dashoffset;
+
+  let colorClass = 'bg-blue';
+  if (value >= 10 && value < 20) {
+    colorClass = 'bg-blue';
+  } else if (value >= 20 && value < 31) {
+    colorClass = 'bg-green';
+  } else if (value >= 31 && value < 32) {
+    colorClass = 'bg-yellow';
+  } else if (value >= 31 && value < 40) {
+    colorClass = 'bg-orange';
+  } else if (value >= 40) {
+    colorClass = 'bg-red';
+  }
+  circle.setAttribute('class', `progress-bar ${colorClass}`);
+  document.getElementById(id.replace("-progress", "")).textContent = `${id.charAt(0).toUpperCase() + id.slice(1).replace("-progress", "")}: ${value} ${unit}`;
+}
+
+
   </script>
 </body>
+
 </html>
