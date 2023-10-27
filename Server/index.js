@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const createWebSocketServer = require('./src/websocket/websocketServer');
 const sensorDataRoutes = require('./src/routes/sensorDataRoutes');
+const cors = require('cors');
 
 require('dotenv').config();
 console.log(process.env.MONGODB_URI);
