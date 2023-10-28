@@ -40,16 +40,14 @@ const createWebSocketServer = (server) => {
         if (messageString.startsWith('toggle:')) {
           const pinName = messageString.substring(7);
           const newState = await togglePinState(pinName); // Toggle pin state
-          const updatedPinState = await updatePinState(pinName, newState); // Update pin state in the database
-  
-          // ...
+        const updatedPinState = await updatePinState(pinName, newState); // Update pin state in the database
+
   
           // Broadcast the toggle message to all clients
           wss.clients.forEach((client) => {
-            if (client !== socket && client.readyState === WebSocket.OPEN) {
-              client.send(`toggle:${pinName}`);
-              client.send(JSON.stringify(updatedPinState));
-            }
+             if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(updatedPinState));
+          }
           });
         } else {
           try {

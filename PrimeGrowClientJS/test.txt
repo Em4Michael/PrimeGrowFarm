@@ -1,0 +1,495 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const createWebSocketServer = require('./src/websocket/websocketServer');
+const sensorDataRoutes = require('./src/routes/sensorDataRoutes');
+const pinRoutes = require('./src/routes/pinRoutes');
+
+const cors = require('cors');
+
+require('dotenv').config();
+console.log(process.env.MONGODB_URI);
+
+const app = express();
+const server = app.listen(3001, () => {
+  console.log('Server is running on port 3001');
+});
+
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+  .then(() => {
+    console.log('MongoDB connected successfully');
+  })
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+  });
+
+app.use(express.json());
+app.use(cors());
+// WebSocket server
+createWebSocketServer(server);
+
+// Routes
+app.use('/api', pinRoutes);
+app.use('/api', sensorDataRoutes);
+app.use(express.static('public'));
+
+
+const WebSocket = require('ws');
+const { saveSensorData } = require('../controllers/sensorDataController');
+
+const createWebSocketServer = (server) => {
+    const wss = new WebSocket.Server({ server });
+  
+    wss.on('connection', (socket) => {
+      console.log('WebSocket connection established');
+  
+      socket.on('message', async (message) => {
+        const messageString = message.toString();
+  
+        if (messageString.startsWith('toggle:')) {
+          const pinName = messageString.substring(7);
+          // Handle toggle logic here (similar to your previous implementation)
+          // ...
+  
+          // Broadcast the toggle message to all clients
+          wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(`toggle:${pinName}`);
+            }
+          });
+        } else {
+          try {
+            const sensorData = JSON.parse(messageString);
+            const savedData = await saveSensorData(sensorData);
+            // ...
+  
+            // Broadcast sensor data to all clients
+            wss.clients.forEach((client) => {
+              if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(sensorData));
+              }
+            });
+          } catch (error) {
+            console.error('Error handling WebSocket message:', error);
+          }
+        }
+      });
+    });
+  };
+  
+  module.exports = createWebSocketServer;
+  
+
+const PinState = require('../models/PinState'); // Import PinState model if you have one
+
+const updatePinState = async (pinName, state) => {
+  try {
+    // Find existing PinState object by pinName
+    let pinState = await PinState.findOne({ pinName: pinName });
+
+    if (!pinState) {
+      // If PinState object doesn't exist, create a new one
+      pinState = new PinState({
+        pinName: pinName,
+        state: state,
+      });
+    } else {
+      // If PinState object exists, update its state and timestamp
+      pinState.state = state;
+    }
+
+    // Update the timestamp
+    pinState.timestamp = new Date();
+
+    // Save the updated PinState object to the database
+    await pinState.save();
+
+    console.log(`Updating pin ${pinName} to state: ${state}`);
+    return pinState;
+  } catch (error) {
+    throw error;
+  }
+};
+
+module.exports = {
+  updatePinState,
+};
+
+
+// pinRoutes.js
+const express = require('express');
+const router = express.Router();
+const { updatePinState } = require('../controllers/pinController');
+
+router.post('/toggle', async (req, res) => {
+  try {
+    const { pinName, state } = req.body;
+    const updatedPinState = await updatePinState(pinName, state);
+    res.status(200).json(updatedPinState);
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+module.exports = router;
+
+
+const mongoose = require('mongoose');
+
+const pinStateSchema = new mongoose.Schema({
+  pinName: String,
+  state: String,
+  timestamp: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+const PinState = mongoose.model('PinState', pinStateSchema);
+
+module.exports = PinState;
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prime Grow</title>
+  <link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+  <h1 class="Title">ESP32 Control</h1>
+  <div class="sensor-container">
+    <div class="toggle-switch">
+      <label class="switch-label">
+        <input type="checkbox" onclick="togglePin('E_motor_Down')">
+        <span class="toggle-slider"></span>
+        Window Down <!-- <span id="motorUpState">Off</span> -->
+      </label>
+    </div>
+
+    <div class="toggle-switch">
+      <label class="switch-label">
+        <input type="checkbox" onclick="togglePin('E_motor_Up')">
+        <span class="toggle-slider"></span>
+        Window Up <!-- <span id="motorUpState">Off</span> -->
+      </label>
+    </div>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_Fan')">
+      <span class="toggle-slider"></span>
+      Fan <!-- <span id="fanState">Off</span> -->
+    </label>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_Pump')">
+      <span class="toggle-slider"></span>
+      Pump <!-- <span id="pumpState">Off</span> -->
+    </label>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_pest')">
+      <span class="toggle-slider"></span>
+      pest <!-- <span id="pestState">Off</span> -->
+    </label>
+
+    <label class="toggle-switch">
+      <input type="checkbox" onclick="togglePin('E_Light')">
+      <span class="toggle-slider"></span>
+      Light <!-- <span id="motorUpState">Off</span> -->
+    </label>
+  </div>
+  
+
+  <h2 class="Title">Sensor Data</h2>
+  <div class="sensor-container">
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="temperature-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A °C</text>
+      </svg>
+      <div id="temperature" class="sensor-value">Temperature: N/A °C</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="humidity-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A %</text>
+      </svg>
+      <div id="humidity" class="sensor-value">Humidity: N/A %</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="moisture-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A %</text>
+      </svg>
+      <div id="moisture" class="sensor-value">Moisture: N/A %</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="sunlight-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A %</text>
+      </svg>
+      <div id="sunlight" class="sensor-value">Sunlight: N/A Lux</div>
+    </div>
+
+    <div class="sensor">
+      <svg class="circular-progress-bar">
+        <circle class="progress-background" cx="50" cy="50" r="45" />
+        <circle id="rainfall-progress" class="progress-bar bg-blue" cx="50" cy="50" r="45" />
+        <text x="50" y="50" class="progress-text">N/A mm</text>
+      </svg>
+      <div id="rainfall" class="sensor-value">Rainfall: N/A mm</div>
+    </div>
+  </div>
+
+
+  <script>
+    //const socket = new WebSocket('ws://192.168.0.198:81');
+   const socket = new WebSocket('ws://localhost:3001');
+   //const socket = new WebSocket('wss://primegrow-websocket-server.glitch.me/');
+
+    socket.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+
+    socket.onmessage = (event) => {
+      console.log('Message from server:', event.data);
+      const [pinName, state] = event.data.split(':');
+      const stateElement = document.getElementById(`${pinName.toLowerCase()}State`);
+      if (stateElement) {
+        stateElement.textContent = state === 'on' ? 'On' : 'Off';
+        const buttonElement = document.getElementById(`BTN_Toggle${pinName}`);
+        if (buttonElement) {
+          buttonElement.textContent = `Toggle ${pinName}: ${state === 'on' ? 'Off' : 'On'}`;
+          buttonElement.className = state === 'on' ? 'on' : 'off';
+        }
+      }
+      try {
+        const sensorData = JSON.parse(event.data);
+        updateSensorData(sensorData);
+        updateProgressBar('temperature-progress', sensorData.temperature, 100, '°C');
+        updateProgressBar('humidity-progress', sensorData.humidity, 100, '%');
+        updateProgressBar('moisture-progress', sensorData.moisture, 100, '%');
+        updateProgressBar('sunlight-progress', sensorData.sunlight, 100, 'Lux');
+        updateProgressBar('rainfall-progress', sensorData.rainfall, 100, 'mm');
+
+      } catch (error) {
+        console.error('Error parsing sensor data:', error);
+      }
+    };
+
+    socket.onclose = (event) => {
+      if (event.wasClean) {
+        console.log(`Closed cleanly, code=${event.code}, reason=${event.reason}`);
+      } else {
+        console.error('Connection died');
+      }
+    };
+
+    function togglePin(pinName) {
+      socket.send(`toggle:${pinName}`);
+      console.log(`toggle:${pinName}`);
+    }
+
+
+
+
+    function updateSensorData(sensorData) {
+
+      document.getElementById('temperature').textContent = `Temperature: ${sensorData.temperature} °C`;
+      document.getElementById('humidity').textContent = `Humidity: ${sensorData.humidity} %`;
+      document.getElementById('moisture').textContent = `Moisture: ${sensorData.moisture} %`;
+      document.getElementById('sunlight').textContent = `Sunlight: ${sensorData.sunlight} Lux`;
+      document.getElementById('rainfall').textContent = `Rainfall: ${sensorData.rainfall} mm`;
+
+      // Update progress text for each sensor
+      document.querySelector('#temperature-progress + .progress-text').textContent = `${sensorData.temperature} °C`;
+      document.querySelector('#humidity-progress + .progress-text').textContent = `${sensorData.humidity} %`;
+      document.querySelector('#moisture-progress + .progress-text').textContent = `${sensorData.moisture} %`;
+      document.querySelector('#sunlight-progress + .progress-text').textContent = `${sensorData.sunlight} Lux`;
+      document.querySelector('#rainfall-progress + .progress-text').textContent = `${sensorData.rainfall} mm`;
+    }
+
+    function updateProgressBar(id, value, maxValue, unit) {
+  const progress = (value / maxValue) * 100;
+  const circle = document.getElementById(id);
+  const circumference = 2 * Math.PI * circle.getAttribute('r');
+  const dashoffset = circumference - (circumference * progress) / 100;
+
+  circle.style.strokeDasharray = `${circumference} ${circumference}`;
+  circle.style.strokeDashoffset = dashoffset;
+
+  let colorClass = 'bg-blue';
+  if (value >= 10 && value < 20) {
+    colorClass = 'bg-blue';
+  } else if (value >= 20 && value < 31) {
+    colorClass = 'bg-green';
+  } else if (value >= 31 && value < 32) {
+    colorClass = 'bg-yellow';
+  } else if (value >= 31 && value < 40) {
+    colorClass = 'bg-orange';
+  } else if (value >= 40) {
+    colorClass = 'bg-red';
+  }
+  circle.setAttribute('class', `progress-bar ${colorClass}`);
+  document.getElementById(id.replace("-progress", "")).textContent = `${id.charAt(0).toUpperCase() + id.slice(1).replace("-progress", "")}: ${value} ${unit}`;
+}
+
+
+  </script>
+</body>
+
+</html>
+
+#include <WiFi.h>
+//#include <WebSocketsServer.h>
+#include <ArduinoJson.h>
+#include <WebSocketsClient.h> // Include the WebSocketsClient library
+
+const char* ssid = "MTN_4G_31E593";
+const char* password = "C6E31CBF";
+//const char* webSocketServerAddress = "primegrow-websocket-server.glitch.me";
+//const uint16_t webSocketServerPort = 80;
+const char* webSocketServerAddress = "192.168.0.107";
+const uint16_t webSocketServerPort = 3001;
+WebSocketsClient webSocket;
+
+//WebSocketsServer webSocket = WebSocketsServer(81);
+
+const int E_motor_Down = 5;
+const int E_motor_Up = 15;
+const int E_Fan = 21; 
+const int E_Pump = 4;
+const int E_pest = 18;
+const int E_Light = 19;
+
+bool state_E_motor_Down = LOW;
+bool state_E_motor_Up = LOW;
+bool state_E_Fan = LOW;
+bool state_E_Pump = LOW;
+bool state_E_pest = LOW;
+bool state_E_Light = LOW;
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(E_motor_Down, OUTPUT);
+  pinMode(E_motor_Up, OUTPUT);
+  pinMode(E_Fan, OUTPUT);
+  pinMode(E_Pump, OUTPUT);
+  pinMode(E_pest, OUTPUT);
+  pinMode(E_Light, OUTPUT);
+
+  digitalWrite(E_motor_Down, state_E_motor_Down);
+  digitalWrite(E_motor_Up, state_E_motor_Up);
+  digitalWrite(E_Fan, state_E_Fan);
+  digitalWrite(E_Pump, state_E_Pump);
+  digitalWrite(E_pest, state_E_pest);
+  digitalWrite(E_Light, state_E_Light);
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+
+  Serial.println("Connected to WiFi");
+  Serial.println("IP Address: " + WiFi.localIP().toString());
+
+  //webSocket.begin();
+  webSocket.begin(webSocketServerAddress, webSocketServerPort, "/");
+
+
+  webSocket.onEvent(onWebSocketEvent);
+    webSocket.setReconnectInterval(5000);
+
+}
+
+void loop() {
+  webSocket.loop();
+
+  // Replace Serial.available with Serial.availableForWrite() to prevent buffer overflow
+  if (Serial.available()) {
+    String sensorData = Serial.readStringUntil('\n');
+    Serial.println(sensorData);
+
+    // Parse JSON data
+    DynamicJsonDocument jsonDocument(200);
+    DeserializationError error = deserializeJson(jsonDocument, sensorData);
+
+    if (!error) {
+     // Create a JSON object and add sensor data to it
+JsonObject sensorJson = jsonDocument.as<JsonObject>();
+sensorJson["sensorData"] = sensorData;
+
+// Serialize JSON object to a string
+String jsonString;
+serializeJson(sensorJson, jsonString);
+
+// Send JSON string to WebSocket server
+webSocket.sendTXT(jsonString);
+    } else {
+      Serial.println("Error parsing JSON data");
+    }
+  }
+}
+
+//void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+void onWebSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+  switch (type) {
+    case WStype_TEXT:
+      if (strncmp((char *)payload, "toggle:", 7) == 0) {
+        char pinName[20];
+        strncpy(pinName, (char *)payload + 7, length - 7);
+        pinName[length - 7] = '\0';
+
+        if (strcmp(pinName, "E_motor_Down") == 0) {
+          state_E_motor_Down = !state_E_motor_Down;
+          digitalWrite(E_motor_Down, state_E_motor_Down);
+        } else if (strcmp(pinName, "E_motor_Up") == 0) {
+          state_E_motor_Up = !state_E_motor_Up;
+          digitalWrite(E_motor_Up, state_E_motor_Up);
+        } else if (strcmp(pinName, "E_Fan") == 0) {
+          state_E_Fan = !state_E_Fan;
+          digitalWrite(E_Fan, state_E_Fan);
+        } else if (strcmp(pinName, "E_Pump") == 0) {
+          state_E_Pump = !state_E_Pump;
+          digitalWrite(E_Pump, state_E_Pump);
+        } else if (strcmp(pinName, "E_pest") == 0) {
+          state_E_pest = !state_E_pest;
+          digitalWrite(E_pest, state_E_pest);
+        } else if (strcmp(pinName, "E_Light") == 0) {
+          state_E_Light = !state_E_Light;
+          digitalWrite(E_Light, state_E_Light);
+        } else {
+          // Invalid pin name
+          Serial.println("Invalid pin name");
+          return;
+        }
+
+        // Send pin state back to the client
+        webSocket.sendTXT(pinName);
+
+        // Send updated state to the server
+        String message = "toggle:" + String(pinName) + ":" + (state_E_motor_Down ? "on" : "off");
+        webSocket.sendTXT(message);
+      }
+      break;
+  }
+}
+
+edit, correct and give me the full code to store the pinstate in the data base using the above codes

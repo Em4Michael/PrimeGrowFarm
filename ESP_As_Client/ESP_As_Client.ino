@@ -5,15 +5,15 @@
 
 const char* ssid = "MTN_4G_31E593";
 const char* password = "C6E31CBF";
-const char* webSocketServerAddress = "192.168.0.107";
-const uint16_t webSocketServerPort = 3001;
+const char* webSocketServerAddress = "primegrow-websocket-server.glitch.me";
+const uint16_t webSocketServerPort = 80;
 WebSocketsClient webSocket;
 
 //WebSocketsServer webSocket = WebSocketsServer(81);
 
 const int E_motor_Down = 5;
 const int E_motor_Up = 15;
-const int E_Fan = 21;
+const int E_Fan = 21; 
 const int E_Pump = 4;
 const int E_pest = 18;
 const int E_Light = 19;

@@ -12,6 +12,7 @@ const saveSensorData = async (sensorData) => {
   }
 };
 
+
 module.exports = {
   saveSensorData,
 };
