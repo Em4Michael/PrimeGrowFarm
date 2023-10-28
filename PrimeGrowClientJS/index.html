@@ -143,7 +143,17 @@
       } else {
         console.error('Connection died');
       }
+      return socket;
     };
+
+    let socket = connectWebSocket(); // Initial connection
+
+// Reconnect the WebSocket every 29 seconds
+setInterval(() => {
+  console.log('Reconnecting WebSocket...');
+  socket.close(); // Close the existing connection
+  socket = connectWebSocket(); // Reconnect
+}, 25000); // 25 seconds in milliseconds
 
     function togglePin(pinName) {
       socket.send(`toggle:${pinName}`);
