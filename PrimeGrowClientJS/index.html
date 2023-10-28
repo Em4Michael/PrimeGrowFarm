@@ -106,7 +106,8 @@
   <script>
     //const socket = new WebSocket('ws://192.168.0.198:81');
    //const socket = new WebSocket('ws://localhost:3000');
-   const socket = new WebSocket('wss://primegrow-websocket-server.glitch.me/');
+   function connectWebSocket() {
+    const socket = new WebSocket('wss://primegrow-websocket-server.glitch.me/');
 
     socket.onopen = () => {
       console.log('WebSocket connection established');
@@ -114,13 +115,12 @@
 
     socket.onmessage = (event) => {
       console.log('Message from server:', event.data);
-     // const [pinName, state] = event.data.split(':');
       const [type, pinName, state] = event.data.split(':');
       const stateElement = document.getElementById(`${pinName.toLowerCase()}State`);
       if (type === 'toggle') {
         const switchElement = document.querySelector(`[data-pin="${pinName}"]`);
         if (switchElement) {
-            switchElement.checked = state === 'on';
+          switchElement.checked = state === 'on';
         }
       }
       try {
@@ -131,7 +131,6 @@
         updateProgressBar('moisture-progress', sensorData.moisture, 100, '%');
         updateProgressBar('sunlight-progress', sensorData.sunlight, 100, 'Lux');
         updateProgressBar('rainfall-progress', sensorData.rainfall, 100, 'mm');
-
       } catch (error) {
         console.error('Error parsing sensor data:', error);
       }
@@ -143,18 +142,19 @@
       } else {
         console.error('Connection died');
       }
-      return socket;
+
+      // Reconnect the WebSocket every 25 seconds
+      setTimeout(() => {
+        console.log('Reconnecting WebSocket...');
+        connectWebSocket(); // Reconnect
+      }, 25000); // 25 seconds in milliseconds
     };
 
-    let socket = connectWebSocket(); // Initial connection
+    return socket;
+  }
 
-// Reconnect the WebSocket every 29 seconds
-setInterval(() => {
-  console.log('Reconnecting WebSocket...');
-  socket.close(); // Close the existing connection
-  socket = connectWebSocket(); // Reconnect
-}, 25000); // 25 seconds in milliseconds
-
+  // Initial connection
+  const socket = connectWebSocket();
     function togglePin(pinName) {
       socket.send(`toggle:${pinName}`);
       console.log(`toggle:${pinName}`);
