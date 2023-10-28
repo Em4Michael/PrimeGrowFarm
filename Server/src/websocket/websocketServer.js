@@ -2,6 +2,7 @@ const WebSocket = require('ws');
 const { saveSensorData } = require('../controllers/sensorDataController');
 const { getPinState, updatePinState } = require('../controllers/pinController');
 
+const pinStates = {};
 const togglePinState = async (pinName) => {
   try {
     // Get the current state of the pin from the database
@@ -31,6 +32,10 @@ const togglePinState = async (pinName) => {
 const createWebSocketServer = (server) => {
     const wss = new WebSocket.Server({ server });
   
+     // Send current pin states to the newly connected client
+     Object.keys(pinStates).forEach((pinName) => {
+      socket.send(`toggle:${pinName}:${pinStates[pinName]}`);
+  });
     wss.on('connection', (socket) => {
       console.log('WebSocket connection established');
   
@@ -38,17 +43,20 @@ const createWebSocketServer = (server) => {
         const messageString = message.toString();
   
         if (messageString.startsWith('toggle:')) {
-          const pinName = messageString.substring(7);
+          const pinName = messageString.split(':')[1];
           const newState = await togglePinState(pinName); // Toggle pin state
           const updatedPinState = await updatePinState(pinName, newState); // Update pin state in the database
   
-          // ...
+            // Update the pin state in the pinStates object
+            pinStates[pinName] = newState;
   
           // Broadcast the toggle message to all clients
           wss.clients.forEach((client) => {
             if (client !== socket && client.readyState === WebSocket.OPEN) {
               client.send(`toggle:${pinName}`);
               client.send(JSON.stringify(updatedPinState));
+              client.send(`toggle:${pinName}:${newState}`);
+
             }
           });
         } else {

@@ -10,8 +10,8 @@ require('dotenv').config();
 console.log(process.env.MONGODB_URI);
 
 const app = express();
-const server = app.listen(3001, () => {
-  console.log('Server is running on port 3001');
+const server = app.listen(3000, () => {
+  console.log('Server is running on port 3000');
 });
 
 mongoose.connect(process.env.MONGODB_URI, {

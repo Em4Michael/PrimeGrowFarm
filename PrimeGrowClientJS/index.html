@@ -14,7 +14,7 @@
   <div class="sensor-container">
     <div class="toggle-switch">
       <label class="switch-label">
-        <input type="checkbox" onclick="togglePin('E_motor_Down')">
+        <input type="checkbox" data-pin="E_motor_Down" onclick="togglePin('E_motor_Down')">
         <span class="toggle-slider"></span>
         Window Down <!-- <span id="motorUpState">Off</span> -->
       </label>
@@ -22,32 +22,32 @@
 
     <div class="toggle-switch">
       <label class="switch-label">
-        <input type="checkbox" onclick="togglePin('E_motor_Up')">
+        <input type="checkbox" data-pin="E_motor_Up" onclick="togglePin('E_motor_Up')">
         <span class="toggle-slider"></span>
         Window Up <!-- <span id="motorUpState">Off</span> -->
       </label>
     </div>
 
     <label class="toggle-switch">
-      <input type="checkbox" onclick="togglePin('E_Fan')">
+      <input type="checkbox" data-pin="E_Fan" onclick="togglePin('E_Fan')">
       <span class="toggle-slider"></span>
       Fan <!-- <span id="fanState">Off</span> -->
     </label>
 
     <label class="toggle-switch">
-      <input type="checkbox" onclick="togglePin('E_Pump')">
+      <input type="checkbox" data-pin="E_Pump" onclick="togglePin('E_Pump')">
       <span class="toggle-slider"></span>
       Pump <!-- <span id="pumpState">Off</span> -->
     </label>
 
     <label class="toggle-switch">
-      <input type="checkbox" onclick="togglePin('E_pest')">
+      <input type="checkbox" data-pin="E_pest" onclick="togglePin('E_pest')">
       <span class="toggle-slider"></span>
       pest <!-- <span id="pestState">Off</span> -->
     </label>
 
     <label class="toggle-switch">
-      <input type="checkbox" onclick="togglePin('E_Light')">
+      <input type="checkbox" data-pin="E_Light" onclick="togglePin('E_Light')">
       <span class="toggle-slider"></span>
       Light <!-- <span id="motorUpState">Off</span> -->
     </label>
@@ -105,7 +105,7 @@
 
   <script>
     //const socket = new WebSocket('ws://192.168.0.198:81');
-   //const socket = new WebSocket('ws://localhost:3001');
+   //const socket = new WebSocket('ws://localhost:3000');
    const socket = new WebSocket('wss://primegrow-websocket-server.glitch.me/');
 
     socket.onopen = () => {
@@ -114,14 +114,13 @@
 
     socket.onmessage = (event) => {
       console.log('Message from server:', event.data);
-      const [pinName, state] = event.data.split(':');
+     // const [pinName, state] = event.data.split(':');
+      const [type, pinName, state] = event.data.split(':');
       const stateElement = document.getElementById(`${pinName.toLowerCase()}State`);
-      if (stateElement) {
-        stateElement.textContent = state === 'on' ? 'On' : 'Off';
-        const buttonElement = document.getElementById(`BTN_Toggle${pinName}`);
-        if (buttonElement) {
-          buttonElement.textContent = `Toggle ${pinName}: ${state === 'on' ? 'Off' : 'On'}`;
-          buttonElement.className = state === 'on' ? 'on' : 'off';
+      if (type === 'toggle') {
+        const switchElement = document.querySelector(`[data-pin="${pinName}"]`);
+        if (switchElement) {
+            switchElement.checked = state === 'on';
         }
       }
       try {
